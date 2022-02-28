@@ -3,4 +3,4 @@
 ![gui](./screenshot/gui.jpg)
 
 - [x] Make mnist_viewer
-- [ ] Add model and predict
+- [x] Add model and predict
