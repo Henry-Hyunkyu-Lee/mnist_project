@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
-
-
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QComboBox
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import QtCore
@@ -13,11 +10,19 @@ class ImageViewer(QMainWindow):
 
         self.i = 0
         self.model = None
+        self.data = None
+
+        self.datas = QComboBox()
+        self.datas.addItem('No Data')
+        self.datas.addItem('mnist')
+        self.datas.addItem('fashion_mnist')
+        self.datas.activated[str].connect(self.select_data)
 
         self.imageLabel = QLabel()
+        self.imageLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.labelLabel = QLabel()
         self.labelLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.update_pixmap(i=self.i)
+        # self.update_pixmap(i=self.i)
         
         self.p_btn = QPushButton('prev')
         self.p_btn.clicked.connect(self.prev_img)
@@ -30,7 +35,9 @@ class ImageViewer(QMainWindow):
         self.option.addItem('Conv Net')
         self.option.activated[str].connect(self.select_model)
 
+        self.headerLabel = QLabel('Pred')
         self.answerLabel = QLabel()
+        self.headerLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.answerLabel.setAlignment(QtCore.Qt.AlignCenter)
 
 
@@ -40,11 +47,13 @@ class ImageViewer(QMainWindow):
 
 
         layout = QGridLayout()
-        layout.addWidget(self.imageLabel, 0, 0)
-        layout.addWidget(self.labelLabel, 1, 0)
-        layout.addLayout(btn_layout, 2, 0)
-        layout.addWidget(self.option, 3, 0)
-        layout.addWidget(self.answerLabel, 4, 0)
+        layout.addWidget(self.datas, 0, 0)
+        layout.addWidget(self.imageLabel, 1, 0)
+        layout.addWidget(self.labelLabel, 2, 0)
+        layout.addLayout(btn_layout, 3, 0)
+        layout.addWidget(self.option, 4, 0)
+        layout.addWidget(self.headerLabel, 5, 0)
+        layout.addWidget(self.answerLabel, 6, 0)
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -53,13 +62,13 @@ class ImageViewer(QMainWindow):
         self.show()
 
     def update_pixmap(self, i=0):
-        img = x_test[i]
+        img = self.x_test[i]
         qimg = QImage(img.data, 28, 28, img.strides[0], QImage.Format_Indexed8)
         pxmap = QPixmap.fromImage(qimg)
-        scaled = pxmap.scaled(240,240)
+        scaled = pxmap.scaled(80,80)
         self.imageLabel.setPixmap(scaled)
 
-        label = y_test[i]
+        label = self.y_test[i]
         label = str(label)
         self.labelLabel.setText(label)
 
@@ -67,17 +76,37 @@ class ImageViewer(QMainWindow):
             inp = tf.cast(img, tf.float32) / 255.0
             inp = tf.expand_dims(inp, axis=0)
             predict = self.model.predict(inp)
-            predict = str(tf.argmax(predict[0]))
-            self.answerLabel.setText(predict)
+            predict = int(tf.argmax(predict[0]))
+            self.answerLabel.setText('{}'.format(predict))
 
 
     def prev_img(self):
-        self.i -= 1
-        self.update_pixmap(self.i)
+        if self.data:
+            self.i -= 1
+            self.update_pixmap(self.i)
+        else:
+            print('No data, Please select dataset.')
 
     def next_img(self):
-        self.i += 1
-        self.update_pixmap(self.i)
+        if self.data:
+            self.i += 1
+            self.update_pixmap(self.i)
+        else:
+            print('No data, Please select dataset.')
+
+    def select_data(self, text):
+        if text == 'No Data':
+            x_train, y_train, x_test, y_test = None, None, None, None
+            self.data = None
+        if text == 'mnist':
+            (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+        if text == 'fashion_mnist':
+            (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
+        self.x_train = x_train
+        self.y_train = y_train
+        self.x_test = x_test
+        self.y_test = y_test
+        self.data = text
 
     def select_model(self, text):
         models = {
@@ -86,7 +115,10 @@ class ImageViewer(QMainWindow):
             'Conv Net': 'convnet.h5'
         }
         if models[text]:
-            self.model = tf.keras.models.load_model('models/{}'.format(models[text]))
+            if self.data == 'mnist':
+                self.model = tf.keras.models.load_model('models/{}'.format(models[text]))
+            elif self.data == 'fashion_mnist':
+                self.model = tf.keras.models.load_model('models/fashion_{}'.format(models[text]))
             print('Well loaded {}'.format(models[text]))
         else:
             self.model = None
